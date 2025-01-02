@@ -1,0 +1,54 @@
+
+services:
+  db:
+    image: mysql:latest
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: app_db
+      MYSQL_USER: db_user
+      MYSQL_PASSWORD: db_user_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: pma
+    links:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    ports:
+      - 8081:80
+  mysql-cron-backup:
+    image: fradelg/mysql-cron-backup
+    container_name: mariadb_backup
+    depends_on:
+      - db
+    volumes:
+      - /opt/mysql/backup:/backup
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=db_user
+      - MYSQL_PASS=db_user_pass
+      - MAX_BACKUPS=240
+      - INIT_BACKUP=0
+      # Every 6 hours
+      - CRON_TIME=0 0,6,12,18 * * *
+      # Make it small
+      - GZIP_LEVEL=9
+    restart: unless-stopped
+  app:
+    build:
+      context: .
+    container_name: devops-spring
+    ports:
+      - 80:8080
+    depends_on:
+      - db
+volumes:
+  dbdata:
